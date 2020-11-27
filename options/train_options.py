@@ -41,6 +41,7 @@ class TrainOptions:
 		self.parser.add_argument('--discriminator_arch', default='vgg16', type=str, help='ID loss multiplier factor')
 		self.parser.add_argument('--discriminator_arch', default='', type=str, help='ID loss multiplier factor')
 		self.parser.add_argument('--num_discrimiator_classes', default=1000, type=int, help='Number of classes for discriminator')
+		self.parser.add_argument('--product_image_size', default=224, type=int, help='(size x size) of produced images')
 
 		self.parser.add_argument('--stylegan_weights', default=model_paths['stylegan_ffhq'], type=str, help='Path to StyleGAN model weights')
 		self.parser.add_argument('--checkpoint_path', default=None, type=str, help='Path to pSp model checkpoint')

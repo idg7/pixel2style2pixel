@@ -26,7 +26,7 @@ class pSp(nn.Module):
 		# Define architecture
 		self.encoder = self.set_encoder()
 		self.decoder = Generator(1024, 512, 8)
-		self.face_pool = torch.nn.AdaptiveAvgPool2d((256, 256))
+		self.face_pool = torch.nn.AdaptiveAvgPool2d((opts.product_image_size, opts.product_image_size))
 		# Load weights if needed
 		self.load_weights()
 
