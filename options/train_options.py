@@ -34,6 +34,14 @@ class TrainOptions:
 		self.parser.add_argument('--lpips_lambda_crop', default=0, type=float, help='LPIPS loss multiplier factor for inner image region')
 		self.parser.add_argument('--l2_lambda_crop', default=0, type=float, help='L2 loss multiplier factor for inner image region')
 
+		self.parser.add_argument('--percept_loss_lambda', default=0.1, type=float, help='Perceptual features loss multiplier factor')
+		self.parser.add_argument('--percept_loss_criterion', default='PairwiseDistance', type=str, help='Perceptual features distance loss function')
+		self.parser.add_argument('--concept_loss_lambda', default=0.05, type=float, help='Classification loss multiplier factor')
+		self.parser.add_argument('--concept_loss_criterion', default='CrossEntropyLoss', type=str, help='Classification loss function')
+		self.parser.add_argument('--discriminator_arch', default='vgg16', type=str, help='ID loss multiplier factor')
+		self.parser.add_argument('--discriminator_arch', default='', type=str, help='ID loss multiplier factor')
+		self.parser.add_argument('--num_discrimiator_classes', default=1000, type=int, help='Number of classes for discriminator')
+
 		self.parser.add_argument('--stylegan_weights', default=model_paths['stylegan_ffhq'], type=str, help='Path to StyleGAN model weights')
 		self.parser.add_argument('--checkpoint_path', default=None, type=str, help='Path to pSp model checkpoint')
 

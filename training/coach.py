@@ -2,6 +2,9 @@ import os
 import matplotlib
 import matplotlib.pyplot as plt
 
+from criteria.id_loss.concept_percept_loss_factory import ConceptPerceptLossFactory
+from datasets.percept_concept_dataset import PerceptConceptDataset
+
 matplotlib.use('Agg')
 
 import torch
@@ -38,6 +41,9 @@ class Coach:
 			self.id_loss = id_loss.IDLoss().to(self.device).eval()
 		if self.opts.w_norm_lambda > 0:
 			self.w_norm_loss = w_norm.WNormLoss(start_from_latent_avg=self.opts.start_from_latent_avg)
+		if os.path.isfile(self.opts.discrimiator_path) and (self.opts.percept_loss_lambda > 0 or self.opts.concept_loss_lambda > 0):
+			self.percept_concept_loss = ConceptPerceptLossFactory.get_cp_loss(opts).to(self.device).eval()
+
 		self.mse_loss = nn.MSELoss().to(self.device).eval()
 
 		# Initialize optimizer
@@ -73,10 +79,10 @@ class Coach:
 		while self.global_step < self.opts.max_steps:
 			for batch_idx, batch in enumerate(self.train_dataloader):
 				self.optimizer.zero_grad()
-				x, y = batch
-				x, y = x.to(self.device).float(), y.to(self.device).float()
+				x, y, labels = batch
+				x, y, labels = x.to(self.device).float(), y.to(self.device).float(), labels.to(self.device).int()
 				y_hat, latent = self.net.forward(x, return_latents=True)
-				loss, loss_dict, id_logs = self.calc_loss(x, y, y_hat, latent)
+				loss, loss_dict, id_logs = self.calc_loss(x, y, y_hat, latent, labels)
 				loss.backward()
 				self.optimizer.step()
 
@@ -115,9 +121,9 @@ class Coach:
 			x, y = batch
 
 			with torch.no_grad():
-				x, y = x.to(self.device).float(), y.to(self.device).float()
+				x, y, labels = x.to(self.device).float(), y.to(self.device).float()
 				y_hat, latent = self.net.forward(x, return_latents=True)
-				loss, cur_loss_dict, id_logs = self.calc_loss(x, y, y_hat, latent)
+				loss, cur_loss_dict, id_logs = self.calc_loss(x, y, y_hat, latent, labels)
 			agg_loss_dict.append(cur_loss_dict)
 
 			# Logging related
@@ -164,12 +170,12 @@ class Coach:
 		print('Loading dataset for {}'.format(self.opts.dataset_type))
 		dataset_args = data_configs.DATASETS[self.opts.dataset_type]
 		transforms_dict = dataset_args['transforms'](self.opts).get_transforms()
-		train_dataset_celeba = ImagesDataset(source_root=dataset_args['train_source_root'],
+		train_dataset_celeba = PerceptConceptDataset(source_root=dataset_args['train_source_root'],
 		                                     target_root=dataset_args['train_target_root'],
 		                                     source_transform=transforms_dict['transform_source'],
 		                                     target_transform=transforms_dict['transform_gt_train'],
 		                                     opts=self.opts)
-		test_dataset_celeba = ImagesDataset(source_root=dataset_args['test_source_root'],
+		test_dataset_celeba = PerceptConceptDataset(source_root=dataset_args['test_source_root'],
 		                                    target_root=dataset_args['test_target_root'],
 		                                    source_transform=transforms_dict['transform_source'],
 		                                    target_transform=transforms_dict['transform_test'],
@@ -180,7 +186,7 @@ class Coach:
 		print("Number of test samples: {}".format(len(test_dataset)))
 		return train_dataset, test_dataset
 
-	def calc_loss(self, x, y, y_hat, latent):
+	def calc_loss(self, x, y, y_hat, latent, labels):
 		loss_dict = {}
 		loss = 0.0
 		id_logs = None
@@ -209,6 +215,10 @@ class Coach:
 			loss_w_norm = self.w_norm_loss(latent, self.net.latent_avg)
 			loss_dict['loss_w_norm'] = float(loss_w_norm)
 			loss += loss_w_norm * self.opts.w_norm_lambda
+		if self.opts.percept_loss_lambda > 0 or self.opts.concept_loss_lambda > 0:
+			percept_concept_loss, pc_logs = self.percept_concept_loss(y_hat, y, labels)
+			loss_dict = {**loss_dict, **pc_logs}
+			loss += float(percept_concept_loss)
 		loss_dict['loss'] = float(loss)
 		return loss, loss_dict, id_logs
 
